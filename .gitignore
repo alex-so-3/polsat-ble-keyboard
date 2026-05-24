@@ -1,0 +1,23 @@
+# ESP-IDF build output (CMake writes build/ at the project root and may leave a
+# stray main/build/ from an aborted configure; the unanchored pattern covers both)
+build/
+
+# Generated config: `idf.py set-target esp32c3` rebuilds sdkconfig from
+# sdkconfig.defaults (+ sdkconfig.defaults.esp32c3), which are the committed
+# source of truth. sdkconfig.old is the backup ESP-IDF writes on regeneration.
+sdkconfig
+sdkconfig.old
+
+# ESP-IDF component manager
+managed_components/
+dependencies.lock
+
+# Caches / editor / tooling
+.cache/
+.vscode/
+.idea/
+*.swp
+compile_commands.json
+
+# macOS
+.DS_Store

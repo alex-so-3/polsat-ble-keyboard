@@ -1,0 +1,7 @@
+# ESP32-C3 specific defaults.
+#
+# Most bare "USB-C only" C3 boards expose the console over the built-in
+# USB Serial/JTAG peripheral rather than a USB-UART bridge. If your logs do
+# not appear over `idf.py monitor`, uncomment the line below (it is the
+# default on the official ESP32-C3-DevKitM/C boards anyway).
+# CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
