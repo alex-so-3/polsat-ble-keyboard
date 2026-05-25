@@ -81,11 +81,12 @@ def _configure_idf_build(device_name: str) -> None:
         "CONFIG_BT_NIMBLE_ENABLED": True,
         "CONFIG_BT_BLUEDROID_ENABLED": False,
         "CONFIG_BT_NIMBLE_HID_SERVICE": True,
-        # esp_hidd registers our 3 input reports (keyboard/mouse/consumer); the
-        # default NimBLE HID-service limits are too low and esp_hidd_dev_init then
-        # fails with BLE_HS_EINVAL. Match the working standalone sdkconfig.
+        # esp_hidd registers our report-mode reports (keyboard input + LED output,
+        # mouse input, consumer input = 4). NimBLE's ble_svc_hid_add rejects
+        # rpts_len > BLE_SVC_HID_MAX_RPTS with BLE_HS_EINVAL, which esp_hidd_dev_init
+        # then aborts on. Keep this comfortably above our report count.
         "CONFIG_BT_NIMBLE_SVC_HID_MAX_INSTANCES": 2,
-        "CONFIG_BT_NIMBLE_SVC_HID_MAX_RPTS": 3,
+        "CONFIG_BT_NIMBLE_SVC_HID_MAX_RPTS": 8,
         "CONFIG_BT_NIMBLE_NVS_PERSIST": True,
         "CONFIG_BT_NIMBLE_MAX_BONDS": 8,
         "CONFIG_BT_NIMBLE_MAX_CCCDS": 16,
