@@ -38,6 +38,7 @@ mqtt:
 external_components:
   - source: github://alex-so-3/polsat-ble-keyboard@esphome
     components: [polsat_kbd]
+    refresh: 0s   # always re-fetch the branch on build (default caches for 1 day)
 
 polsat_kbd:
   id: kbd

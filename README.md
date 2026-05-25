@@ -19,6 +19,7 @@ Pull the component from this branch in your ESPHome device YAML:
 external_components:
   - source: github://alex-so-3/polsat-ble-keyboard@esphome
     components: [polsat_kbd]
+    refresh: 0s   # always re-fetch on build; omit/raise to cache (default 1 day)
 ```
 
 See [`esphome-example.yaml`](./esphome-example.yaml) for a complete device config
