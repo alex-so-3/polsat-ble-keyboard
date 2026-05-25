@@ -1,0 +1,64 @@
+# Example device config for the Home Assistant ESPHome builder.
+# Pulls the polsat_kbd component from THIS repo's `esphome` branch over the
+# network, so HA can build the firmware. Merge wifi/api/ota with whatever your HA
+# dashboard generated (HA fills in secrets + the API/OTA keys on adopt).
+#
+# IMPORTANT: do NOT add esp32_ble / ble_server / esp32_ble_tracker — this
+# component owns the Bluetooth controller (one controller, one host).
+
+esphome:
+  name: polsat-kbd
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+
+ota:
+  - platform: esphome
+
+# The requested combo example publishes to MQTT.
+mqtt:
+  broker: !secret mqtt_broker
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+
+# Our component, fetched from this repo's `esphome` branch (default `components/`
+# path). If the GitHub repo is PRIVATE, HA can't clone it via github:// — make it
+# public, or copy components/polsat_kbd/ into the HA add-on's esphome/components/
+# dir and use `source: { type: local, path: components }` instead.
+external_components:
+  - source: github://alex-so-3/polsat-ble-keyboard@esphome
+    components: [polsat_kbd]
+
+polsat_kbd:
+  id: kbd
+  ir_pin: 4            # TSOP output
+  led_pin: 8           # SuperMini on-board LED (active-low); -1 to disable
+  led_active_low: true
+  boot_pin: 9          # hold ~1.5 s = pairing reset; -1 to disable
+  device_name: "Polsat IR Kbd"
+
+  # Hold this key, then a combo key fires an ESPHome action instead of typing.
+  # Value = Sejin function code from the serial log (`fn=0x..`). 0x21 = RAlt.
+  action_key: 0x21
+  combos:
+    - function: 0x19   # RAlt + L  -> publish to MQTT
+      then:
+        - mqtt.publish:
+            topic: polsat/kbd
+            payload: "lights"
+    - function: 0x53   # RAlt + F1 -> Home Assistant service
+      then:
+        - homeassistant.service:
+            service: light.toggle
+            data:
+              entity_id: light.living_room

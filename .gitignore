@@ -21,3 +21,8 @@ compile_commands.json
 
 # macOS
 .DS_Store
+
+# ESPHome (esphome branch)
+.esphome/
+secrets.yaml
+__pycache__/
