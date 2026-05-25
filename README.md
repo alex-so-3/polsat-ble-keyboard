@@ -38,9 +38,9 @@ polsat_kbd:
   led_active_low: true # LED lit when the pin is LOW (SuperMini default)
   boot_pin: 9          # hold ~1.5 s = pairing reset (-1 disables)
   device_name: "Polsat IR Kbd"
-  action_key: 0x21     # "action modifier": held -> combos fire; itself never types
+  action_key: 0x60     # Fn (default) — shared with the firmware Fn layer
   combos:
-    - function: 0x19   # action_key + this key -> run `then` (and don't type it)
+    - function: 0x12   # Fn + A -> run `then` (and don't type A)
       then:
         - mqtt.publish: { topic: polsat/kbd, payload: "lights" }
 ```
@@ -52,18 +52,21 @@ polsat_kbd:
 | `led_active_low` | `true` | LED is lit when the pin is LOW |
 | `boot_pin` | `9` | pairing-reset button GPIO (`-1` to disable) |
 | `device_name` | `"Polsat IR Kbd"` | BLE name |
-| `action_key` | — | Sejin function code of the action modifier |
+| `action_key` | `0x60` (Fn) | Sejin function code of the action modifier |
 | `combos` | — | list of `function` (Sejin code) + a `then:` automation |
 
-### Combo → ESPHome action
+### Combo → ESPHome action (on the Fn layer)
 
-A combo is **`action_key` held + a key pressed** (the same idea as the firmware's
-Fn layer). The `action_key` never types; a combo key is suppressed from HID and
-runs its `then:` automation instead. Identify keys by the **`fn=0x..` code printed
-in the serial log** when you press them.
+`action_key` defaults to **Fn (0x60)** and is **shared with the firmware's Fn
+layer** — Fn keeps doing multi-device switching (Fn+F1..F4), media keys
+(Fn+arrows / Enter) and the numpad, and the configured combos add ESPHome actions
+on the **same layer**. A combo is **Fn held + a key pressed**: that key fires its
+`then:` automation and is suppressed from typing, **overriding** whatever Fn+<key>
+would otherwise do — so choose combo keys the Fn layer doesn't already use (e.g.
+plain letters). Identify keys by the **`fn=0x..` code in the serial log**.
 
-Pairing, the BOOT pairing-reset, the status LED, the Fn layer and trackball scroll
-behave exactly as documented on the `main` branch.
+Pairing, the BOOT pairing-reset, the status LED, the full Fn layer and trackball
+scroll behave exactly as documented on the `main` branch.
 
 ## Caveats
 

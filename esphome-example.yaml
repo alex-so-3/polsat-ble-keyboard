@@ -47,16 +47,19 @@ polsat_kbd:
   boot_pin: 9          # hold ~1.5 s = pairing reset; -1 to disable
   device_name: "Polsat IR Kbd"
 
-  # Hold this key, then a combo key fires an ESPHome action instead of typing.
-  # Value = Sejin function code from the serial log (`fn=0x..`). 0x21 = RAlt.
-  action_key: 0x21
+  # Action modifier — defaults to Fn (0x60) and is SHARED with the firmware's Fn
+  # layer: Fn still does multi-device switch (Fn+F1..F4), media (Fn+arrows/Enter)
+  # and the numpad, and the combos below add ESPHome actions on the same layer.
+  # A combo key overrides whatever Fn+<that key> would do, so pick keys the Fn
+  # layer doesn't use. Codes are the `fn=0x..` from the serial log.
+  action_key: 0x60          # Fn
   combos:
-    - function: 0x19   # RAlt + L  -> publish to MQTT
+    - function: 0x12   # Fn + A  -> publish to MQTT
       then:
         - mqtt.publish:
             topic: polsat/kbd
             payload: "lights"
-    - function: 0x53   # RAlt + F1 -> Home Assistant service
+    - function: 0x02   # Fn + B  -> Home Assistant service
       then:
         - homeassistant.service:
             service: light.toggle

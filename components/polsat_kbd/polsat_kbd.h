@@ -15,10 +15,13 @@ namespace polsat_kbd {
 // except for configured "action combos", which fire an ESPHome Trigger (so YAML
 // can run mqtt.publish / homeassistant.* etc.) instead of typing.
 //
-// A combo is "action_key held + <key> pressed", mirroring the firmware's Fn
-// layer: the action_key itself never types, and a combo key is suppressed from
-// HID while it routes to its trigger. Function codes are the `fn=0x..` values
-// printed in the serial log.
+// A combo is "action_key held + <key> pressed". action_key defaults to the **Fn**
+// key (0x60) and is forwarded to the firmware, so the firmware's own Fn layer
+// (multi-device switch, media keys, numpad) keeps working on the SAME layer. A
+// configured combo key is intercepted — it fires its trigger and is suppressed
+// from the firmware, so it overrides whatever Fn+<key> would otherwise do. Pick
+// combo keys the Fn layer doesn't already use. Function codes are the `fn=0x..`
+// values printed in the serial log.
 class PolsatKbd : public Component {
  public:
   void set_ir_pin(int pin) { this->ir_pin_ = pin; }
@@ -44,7 +47,7 @@ class PolsatKbd : public Component {
   int led_pin_{-1};
   bool led_active_low_{true};
   int boot_pin_{-1};
-  int action_key_{-1};  // Sejin function code of the action modifier, -1 = none
+  int action_key_{0x60};  // Sejin function code of the action modifier (default Fn); -1 = none
 
   bool action_held_{false};
   uint8_t fired_[256] = {0};  // per-function latch so a held combo fires once

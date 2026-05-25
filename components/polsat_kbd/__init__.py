@@ -37,9 +37,10 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_DEVICE_NAME, default="Polsat IR Kbd"): cv.All(
             cv.string, cv.Length(max=29)
         ),
-        # The Sejin function code of the "action modifier" (held -> combos fire,
-        # itself never types). The `fn=0x..` value seen in the serial log.
-        cv.Optional(CONF_ACTION_KEY): cv.hex_uint8_t,
+        # The Sejin function code of the "action modifier" (held -> combos fire).
+        # Defaults to Fn (0x60), shared with the firmware's Fn layer; the `fn=0x..`
+        # value seen in the serial log.
+        cv.Optional(CONF_ACTION_KEY, default=0x60): cv.hex_uint8_t,
         # Each combo: a `function` code + a `then:` automation. Fires while the
         # action_key is held and that key is pressed.
         cv.Optional(CONF_COMBOS): automation.validate_automation(
@@ -101,8 +102,7 @@ async def to_code(config):
     cg.add(var.set_led_pin(config[CONF_LED_PIN]))
     cg.add(var.set_led_active_low(config[CONF_LED_ACTIVE_LOW]))
     cg.add(var.set_boot_pin(config[CONF_BOOT_PIN]))
-    if CONF_ACTION_KEY in config:
-        cg.add(var.set_action_key(config[CONF_ACTION_KEY]))
+    cg.add(var.set_action_key(config[CONF_ACTION_KEY]))
 
     for conf in config.get(CONF_COMBOS, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID])

@@ -71,35 +71,38 @@ void PolsatKbd::handle_key_(uint8_t function, bool toggle) {
     return;
   }
 
-  // The action modifier: tracks state, never types.
-  if (this->action_key_ >= 0 && function == (uint8_t) this->action_key_) {
-    this->action_held_ = !toggle;
-    if (!this->action_held_) {
-      memset(this->fired_, 0, sizeof this->fired_);
+  // A key currently consumed as a combo: swallow every further frame (repeats and
+  // the release) so the firmware never types or acts on it.
+  if (this->fired_[function]) {
+    if (toggle) {
+      this->fired_[function] = 0;
     }
     return;
   }
 
-  // While the action modifier is held, a configured key fires its trigger
-  // (once per press) instead of typing.
-  if (this->action_held_) {
-    for (auto &combo : this->combos_) {
-      if (combo.first == function) {
-        if (!toggle) {
-          if (!this->fired_[function]) {
-            this->fired_[function] = 1;
-            ESP_LOGD(TAG, "combo fn=0x%02X -> ESPHome action", function);
-            combo.second->trigger();
-          }
-        } else {
-          this->fired_[function] = 0;
-        }
-        return;  // suppressed from HID
-      }
-    }
-    // action held but this key has no combo -> fall through and type normally
+  // The action modifier (default Fn): track it AND forward it to the firmware, so
+  // the firmware's own Fn layer (multi-device / media / numpad) keeps working.
+  if (this->action_key_ >= 0 && function == (uint8_t) this->action_key_) {
+    this->action_held_ = !toggle;
+    ble_kbd_handle_key(function, toggle);
+    return;
   }
 
+  // Action layer held + a configured combo key pressed -> fire the ESPHome
+  // trigger (once per press) and consume the key, overriding whatever Fn+<key>
+  // would otherwise do in the firmware.
+  if (this->action_held_ && !toggle) {
+    for (auto &combo : this->combos_) {
+      if (combo.first == function) {
+        this->fired_[function] = 1;
+        ESP_LOGD(TAG, "combo fn=0x%02X -> ESPHome action", function);
+        combo.second->trigger();
+        return;
+      }
+    }
+  }
+
+  // Everything else, including Fn + non-combo keys, goes to the firmware.
   ble_kbd_handle_key(function, toggle);
 }
 
