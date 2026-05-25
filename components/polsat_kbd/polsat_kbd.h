@@ -4,6 +4,10 @@
 #include <utility>
 #include <vector>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+
 #include "esphome/core/component.h"
 #include "esphome/core/automation.h"
 
@@ -40,8 +44,18 @@ class PolsatKbd : public Component {
   float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
 
  protected:
-  // Route one decoded Sejin-1 key event: action_key / combo (-> trigger) / HID.
+  // Dedicated FreeRTOS task: tight IR capture loop (re-arms RMT immediately after
+  // each frame, like the standalone firmware), so fast trackball frame bursts are
+  // not missed the way they are when pumped from ESPHome's shared loop().
+  void ir_task_();
+  static void ir_task_trampoline_(void *arg) { static_cast<PolsatKbd *>(arg)->ir_task_(); }
+
+  // Route one decoded Sejin-1 key event: action_key / combo / HID. Runs in the IR
+  // task; a combo is queued (not fired) because ESPHome triggers must run in loop().
   void handle_key_(uint8_t function, bool toggle);
+
+  TaskHandle_t ir_task_handle_{nullptr};
+  QueueHandle_t combo_queue_{nullptr};  // combo indices, IR task -> loop()
 
   int ir_pin_{4};
   int led_pin_{-1};

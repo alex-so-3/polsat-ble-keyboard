@@ -38,19 +38,24 @@ void PolsatKbd::setup() {
   }
   ble_kbd_init();          // NVS + NimBLE + esp_hid + mouse timer (own FreeRTOS task)
   ir_rmt_init(this->ir_pin_);
+
+  // Run the IR capture in its own task (not ESPHome's shared loop): it blocks on
+  // each frame and re-arms the RMT immediately, so fast trackball frame bursts are
+  // not missed. Combos detected here are queued and fired from loop().
+  this->combo_queue_ = xQueueCreate(8, sizeof(uint8_t));
+  xTaskCreate(PolsatKbd::ir_task_trampoline_, "polsat_ir", 4096, this, 5,
+              &this->ir_task_handle_);
 }
 
-void PolsatKbd::loop() {
-  if (s_pairing_req) {
-    s_pairing_req = false;
-    ble_kbd_enter_pairing();
-  }
-
-  // Non-blocking drain: pull whatever IR frames are queued, then return so we
-  // don't stall ESPHome's loop. NimBLE + the esp_timer callbacks run elsewhere.
+void PolsatKbd::ir_task_() {
   ir_frame_t frame;
   sejin_frame_t s;
-  while (ir_rmt_get_frame(&frame, 0)) {
+  for (;;) {
+    // Blocks until a frame is ready, then re-arms the RMT immediately — so dense
+    // trackball frame bursts are captured without the gaps a shared loop() leaves.
+    if (!ir_rmt_get_frame(&frame, portMAX_DELAY)) {
+      continue;
+    }
     if (!decode_sejin_38(&frame, &s)) {
       continue;
     }
@@ -59,6 +64,22 @@ void PolsatKbd::loop() {
       this->handle_key_(s.function, s.toggle);
     } else {
       ble_kbd_handle_mouse(&s);
+    }
+  }
+}
+
+void PolsatKbd::loop() {
+  if (s_pairing_req) {
+    s_pairing_req = false;
+    ble_kbd_enter_pairing();
+  }
+  // Fire any combos the IR task queued (ESPHome triggers must run in loop()).
+  uint8_t idx;
+  while (this->combo_queue_ != nullptr &&
+         xQueueReceive(this->combo_queue_, &idx, 0) == pdTRUE) {
+    if (idx < this->combos_.size()) {
+      ESP_LOGD(TAG, "combo[%u] -> ESPHome action", (unsigned) idx);
+      this->combos_[idx].second->trigger();
     }
   }
 }
@@ -92,11 +113,12 @@ void PolsatKbd::handle_key_(uint8_t function, bool toggle) {
   // trigger (once per press) and consume the key, overriding whatever Fn+<key>
   // would otherwise do in the firmware.
   if (this->action_held_ && !toggle) {
-    for (auto &combo : this->combos_) {
-      if (combo.first == function) {
+    for (size_t i = 0; i < this->combos_.size(); i++) {
+      if (this->combos_[i].first == function) {
         this->fired_[function] = 1;
-        ESP_LOGD(TAG, "combo fn=0x%02X -> ESPHome action", function);
-        combo.second->trigger();
+        uint8_t idx = (uint8_t) i;
+        // Queue it; loop() fires the ESPHome trigger from the main-loop thread.
+        xQueueSend(this->combo_queue_, &idx, 0);
         return;
       }
     }
