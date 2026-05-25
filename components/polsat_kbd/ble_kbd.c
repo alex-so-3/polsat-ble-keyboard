@@ -477,10 +477,18 @@ void ble_kbd_handle_key(uint8_t function, bool toggle) {
     }
 }
 
+// --- temporary trackball diagnostics (remove once tuned) ---
+static volatile uint32_t s_dbg_frames, s_dbg_ticks, s_dbg_sends, s_dbg_send_us_max;
+static int64_t s_dbg_last_log;
+
 static void send_mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8_t pan) {
     if (!s_ready || s_hid_dev == NULL) return;
     uint8_t buf[MOUSE_REPORT_LEN] = {buttons, (uint8_t)dx, (uint8_t)dy, (uint8_t)wheel, (uint8_t)pan};
+    int64_t t0 = esp_timer_get_time();
     esp_err_t err = esp_hidd_dev_input_set(s_hid_dev, 0, MOUSE_REPORT_ID, buf, MOUSE_REPORT_LEN);
+    uint32_t dur = (uint32_t)(esp_timer_get_time() - t0);
+    if (dur > s_dbg_send_us_max) s_dbg_send_us_max = dur;
+    s_dbg_sends++;
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "mouse input_set failed: %s", esp_err_to_name(err));
     }
@@ -490,6 +498,7 @@ static void send_mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8
 // (no frame for MOUSE_COAST_MS) the velocity decays so motion glides to a stop
 // instead of either freezing abruptly or sailing on forever.
 static void mouse_tick(void *arg) {
+    s_dbg_ticks++;
     if (!s_ready) return;
     if (s_vx == 0.0f && s_vy == 0.0f) return;
 
@@ -565,6 +574,19 @@ void ble_kbd_handle_mouse(const sejin_frame_t *s) {
             else                                send_mouse(s_mouse_buttons, 0, 0, 0, (int8_t)steps);
         }
         return;
+    }
+
+    // --- diagnostics: log rates every ~2s while the trackball is moving ---
+    s_dbg_frames++;
+    {
+        int64_t tnow = esp_timer_get_time();
+        if (tnow - s_dbg_last_log > 2000000) {
+            ESP_LOGI(TAG, "mdbg per~2s: mouse_frames=%u ticks=%u sends=%u max_send=%uus",
+                     (unsigned)s_dbg_frames, (unsigned)s_dbg_ticks,
+                     (unsigned)s_dbg_sends, (unsigned)s_dbg_send_us_max);
+            s_dbg_frames = s_dbg_ticks = s_dbg_sends = s_dbg_send_us_max = 0;
+            s_dbg_last_log = tnow;
+        }
     }
 
     // Time since the previous movement frame.
