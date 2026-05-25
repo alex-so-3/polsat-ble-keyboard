@@ -19,6 +19,10 @@ logger:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # Keep the radio always on. With WiFi modem-sleep (the default), coexistence
+  # delays BLE connection events on the single-core C3 and the BLE pointer
+  # becomes very laggy/slow. `none` keeps the trackball smooth.
+  power_save_mode: none
 
 api:
 
