@@ -79,7 +79,7 @@ void PolsatKbd::loop() {
          xQueueReceive(this->combo_queue_, &idx, 0) == pdTRUE) {
     if (idx < this->combos_.size()) {
       ESP_LOGD(TAG, "combo[%u] -> ESPHome action", (unsigned) idx);
-      this->combos_[idx].second->trigger();
+      this->combos_[idx].trigger->trigger();
     }
   }
 }
@@ -111,10 +111,14 @@ void PolsatKbd::handle_key_(uint8_t function, bool toggle) {
 
   // Action layer held + a configured combo key pressed -> fire the ESPHome
   // trigger (once per press) and consume the key, overriding whatever Fn+<key>
-  // would otherwise do in the firmware.
+  // would otherwise do in the firmware. A combo whose slot_mask excludes the
+  // current BLE slot is skipped, so Fn+<key> falls through to the firmware
+  // default on that slot (e.g. Fn+Left = Volume Down on non-allowed slots).
   if (this->action_held_ && !toggle) {
+    uint8_t active_bit = (uint8_t) (1u << ble_kbd_current_slot());
     for (size_t i = 0; i < this->combos_.size(); i++) {
-      if (this->combos_[i].first == function) {
+      const auto &c = this->combos_[i];
+      if (c.function == function && (c.slot_mask & active_bit)) {
         this->fired_[function] = 1;
         uint8_t idx = (uint8_t) i;
         // Queue it; loop() fires the ESPHome trigger from the main-loop thread.

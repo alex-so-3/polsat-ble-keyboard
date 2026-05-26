@@ -23,3 +23,7 @@ void ble_kbd_handle_mouse(const sejin_frame_t *s);
 // Enter pairing mode: clear stored BLE bonds, drop any active link, and
 // advertise fresh so a new host can pair. Bound to a long-press of BOOT.
 void ble_kbd_enter_pairing(void);
+
+// Currently selected BLE device slot (0-based, 0..3). Persisted in NVS and
+// switched by Fn+F1..F4 — used by the combo dispatcher for per-slot gating.
+uint8_t ble_kbd_current_slot(void);

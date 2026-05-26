@@ -87,6 +87,10 @@ esp_err_t esp_hid_ble_gap_pairing_reset(void);
 // bond. The choice is persisted in NVS. Bound to Fn+F1..F4.
 esp_err_t esp_hid_ble_gap_switch_device(uint8_t slot);
 
+// Current BLE device slot (0-based, 0..DEVICE_SLOTS-1). Loads from NVS on first
+// call (matching the same lazy-load other slot APIs use).
+uint8_t esp_hid_ble_gap_current_slot(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -594,6 +594,10 @@ bool ble_kbd_connected(void) {
     return s_ready;
 }
 
+uint8_t ble_kbd_current_slot(void) {
+    return esp_hid_ble_gap_current_slot();
+}
+
 // Called from esp_hid_gap.c's NimBLE GAP handler once the link is encrypted.
 void ble_hid_task_start_up(void) {
     s_ready = true;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <utility>
 #include <vector>
 
 #include "freertos/FreeRTOS.h"
@@ -33,8 +32,10 @@ class PolsatKbd : public Component {
   void set_led_active_low(bool v) { this->led_active_low_ = v; }
   void set_boot_pin(int pin) { this->boot_pin_ = pin; }
   void set_action_key(int function) { this->action_key_ = function; }
-  void add_combo(uint8_t function, Trigger<> *trigger) {
-    this->combos_.emplace_back(function, trigger);
+  // slot_mask: bit i = slot (i+1) allowed; 0xFF = every slot (default when YAML
+  // omits `slots:`). Matches the user-visible 1..4 slot numbering of Fn+F1..F4.
+  void add_combo(uint8_t function, uint8_t slot_mask, Trigger<> *trigger) {
+    this->combos_.push_back(ComboEntry{function, slot_mask, trigger});
   }
 
   void setup() override;
@@ -65,7 +66,15 @@ class PolsatKbd : public Component {
 
   bool action_held_{false};
   uint8_t fired_[256] = {0};  // per-function latch so a held combo fires once
-  std::vector<std::pair<uint8_t, Trigger<> *>> combos_;
+
+  // One combo: a `function` key + which BLE slots it's allowed on + the ESPHome
+  // trigger to fire. slot_mask uses bit i for slot (i+1); 0xFF means "every slot".
+  struct ComboEntry {
+    uint8_t function;
+    uint8_t slot_mask;
+    Trigger<> *trigger;
+  };
+  std::vector<ComboEntry> combos_;
 };
 
 }  // namespace polsat_kbd

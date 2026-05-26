@@ -815,6 +815,11 @@ static void slot_save(void) {
     }
 }
 
+uint8_t esp_hid_ble_gap_current_slot(void) {
+    slot_load();
+    return s_slot;
+}
+
 // Derive a stable static-random address for a slot from the factory MAC. The
 // address bytes are little-endian (val[0] = LSB); a static-random address must
 // have the top two bits of the most-significant byte set.

@@ -70,3 +70,13 @@ polsat_kbd:
             service: light.toggle
             data:
               entity_id: light.living_room
+    # Restrict a combo to one or more BLE slots (1..4, the Fn+F1..F4 slot ids).
+    # On slots NOT listed the combo doesn't match and the key falls through to
+    # the firmware default — so e.g. Fn+Left stays Volume Down on slots 2..4
+    # and only publishes MQTT on slot 1. `slots:` accepts a single int too.
+    - function: 0x0D   # Fn + Left Arrow
+      slots: [1]
+      then:
+        - mqtt.publish:
+            topic: polsat/kbd
+            payload: "fn_left_slot1"

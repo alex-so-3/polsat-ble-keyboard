@@ -25,6 +25,10 @@ CONF_DEVICE_NAME = "device_name"
 CONF_ACTION_KEY = "action_key"
 CONF_COMBOS = "combos"
 CONF_FUNCTION = "function"
+CONF_SLOTS = "slots"
+
+# Must match DEVICE_SLOTS in esp_hid_gap.c (user-visible Fn+F1..F4).
+_MAX_SLOTS = 4
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -41,14 +45,18 @@ CONFIG_SCHEMA = cv.Schema(
         # Defaults to Fn (0x60), shared with the firmware's Fn layer; the `fn=0x..`
         # value seen in the serial log.
         cv.Optional(CONF_ACTION_KEY, default=0x60): cv.hex_uint8_t,
-        # Each combo: a `function` code + a `then:` automation. Fires while the
-        # action_key is held and that key is pressed.
+        # Each combo: a `function` code + a `then:` automation, optionally
+        # restricted to one or more BLE slots (1..4, the Fn+F1..F4 slot ids).
+        # Omit `slots:` to fire on every slot. Accepts a single int or a list.
         cv.Optional(CONF_COMBOS): automation.validate_automation(
             {
                 cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(
                     automation.Trigger.template()
                 ),
                 cv.Required(CONF_FUNCTION): cv.hex_uint8_t,
+                cv.Optional(CONF_SLOTS): cv.ensure_list(
+                    cv.int_range(min=1, max=_MAX_SLOTS)
+                ),
             }
         ),
     }
@@ -113,6 +121,14 @@ async def to_code(config):
     for conf in config.get(CONF_COMBOS, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID])
         await automation.build_automation(trigger, [], conf)
-        cg.add(var.add_combo(conf[CONF_FUNCTION], trigger))
+        # Pack the slot list into a bitmask matching ble_kbd_current_slot()'s
+        # 0-based id: slot N (1..4) -> bit (N-1). No `slots:` -> 0xFF (any slot).
+        if CONF_SLOTS in conf:
+            slot_mask = 0
+            for s in conf[CONF_SLOTS]:
+                slot_mask |= 1 << (s - 1)
+        else:
+            slot_mask = 0xFF
+        cg.add(var.add_combo(conf[CONF_FUNCTION], slot_mask, trigger))
 
     _configure_idf_build(config[CONF_DEVICE_NAME])
